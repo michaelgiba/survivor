@@ -20,24 +20,13 @@
 </head>
 <body>
     <canvas id="canvas" width="600" height="600"></canvas>
-    
-    <script>
-        // Since we're using raw wasm without wasm-bindgen
-        // We need a manual loading approach
-        fetch('/wasm/survivor_lib.wasm')
-            .then(response => response.arrayBuffer())
-            .then(bytes => WebAssembly.instantiate(bytes, {}))
-            .then(results => {
-                const instance = results.instance;
-                // Here you would call exported functions
-                console.log("WASM module loaded:", instance.exports);
-                
-                // If you have a draw_circles export:
-                instance.exports.draw_circles();
-            })
-            .catch(error => {
-                console.error("Error loading WASM:", error);
-            });
+    <script type="module">
+        import init, {draw_circles} from './wasm/survivor_lib.js';
+        async function run() {
+            await init();
+            draw_circles("canvas");
+        }
+        run();
     </script>
 </body>
 </html>

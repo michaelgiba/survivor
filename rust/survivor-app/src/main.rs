@@ -1,49 +1,53 @@
-use actix_web::{web, App, HttpServer, Responder, HttpResponse};
-use actix_files as fs;
-use std::process::Command;
-use std::io;
+use tiny_http::{Server, Response, Request, Header};
+use std::fs::File;
+use std::io::{self, Read};
+use std::path::{Path, PathBuf};
 
-async fn index() -> impl Responder {
-    HttpResponse::Ok().body(include_str!("../../static/index.html"))
+fn main() -> io::Result<()> {
+    let server = Server::http("127.0.0.1:8080").unwrap();
+    println!("Server listening on http://127.0.0.1:8080/");
+
+    for request in server.incoming_requests() {
+        handle_request(request)?;
+    }
+
+    Ok(())
 }
 
-#[actix_web::main]
-async fn main() -> io::Result<()> {
-    println!("Starting web server on http://localhost:8080");
-    println!("Opening browser...");
-    
-    // Open the browser (works on most platforms)
-    #[cfg(target_os = "windows")]
-    {
-        Command::new("cmd").args(&["/C", "start http://localhost:8080"]).spawn().ok();
-    }
-    
-    #[cfg(target_os = "linux")]
-    {
-        Command::new("xdg-open").arg("http://localhost:8080").spawn().ok();
-    }
-    
-    #[cfg(target_os = "macos")]
-    {
-        Command::new("open").arg("http://localhost:8080").spawn().ok();
-    }
-    
-    // Determine the path based on build mode
-    let wasm_path = if cfg!(debug_assertions) {
-        "./target/wasm32-unknown-unknown/debug"
+fn handle_request(request: Request) -> io::Result<()> {
+    let url = request.url();
+    let path = Path::new(&url[1..]);
+
+    let file_path = if path.to_str().unwrap_or_default() == "" {
+        PathBuf::from("./static/index.html")
+    } else if url.starts_with("/wasm/") {
+        PathBuf::from("./survivor-lib/pkg/").join(path.strip_prefix("wasm/").unwrap())
     } else {
-        "./target/wasm32-unknown-unknown/release"
+        PathBuf::from("./static/").join(path)
     };
-    
-    // Start the web server
-    HttpServer::new(move || {
-        App::new()
-            .route("/", web::get().to(index))
-            .service(fs::Files::new("/static", "./static").show_files_listing())
-            // Serve WASM files from the appropriate directory based on build mode
-            .service(fs::Files::new("/wasm", wasm_path).show_files_listing())
-    })
-    .bind("127.0.0.1:8080")?
-    .run()
-    .await
+
+    if file_path.is_file() {
+        let mut file = File::open(&file_path)?;
+        let mut contents = Vec::new();
+        file.read_to_end(&mut contents)?;
+
+        let mime_type = if file_path.extension().map_or(false, |ext| ext == "wasm") {
+            "application/wasm"
+        } else if file_path.extension().map_or(false, |ext| ext == "html") {
+            "text/html; charset=utf-8"
+        } else if file_path.extension().map_or(false, |ext| ext == "js") {
+            "application/javascript"
+        } else {
+            "application/octet-stream"
+        };
+
+        let response = Response::from_data(contents)
+            .with_header(Header::from_bytes(&b"Content-Type"[..], mime_type.as_bytes().to_vec()).unwrap());
+
+        request.respond(response)?;
+    } else {
+        request.respond(Response::from_string("404 Not Found").with_status_code(404))?;
+    }
+
+    Ok(())
 }

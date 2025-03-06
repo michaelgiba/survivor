@@ -20,19 +20,14 @@ pub fn draw_circles(canvas_id: &str) -> Result<(), JsValue> {
     let center_x = canvas_width / 2.0;
     let center_y = canvas_height / 2.0;
     
-    // Draw the large central circle
-    let center_radius = canvas_width.min(canvas_height) * 0.15;
-    context.begin_path();
-    context.set_fill_style(&JsValue::from_str("blue"));
-    context.arc(center_x, center_y, center_radius, 0.0, 2.0 * PI)?;
-    context.fill();
+    // Calculate sizes based on canvas dimensions
+    let radius_reference = canvas_width.min(canvas_height) * 0.15;
+    let orbit_radius = radius_reference * 2.5;
+    let small_radius = radius_reference * 0.4;
     
-    // Draw 8 circles around the central one
-    let orbit_radius = center_radius * 2.5;
-    let small_radius = center_radius * 0.4;
-    
-    for i in 0..8 {
-        let angle = (i as f64) * (2.0 * PI / 8.0);
+    // Draw 11 green circles in an orbit
+    for i in 0..11 {
+        let angle = (i as f64) * (2.0 * PI / 11.0);
         let x = center_x + orbit_radius * angle.cos();
         let y = center_y + orbit_radius * angle.sin();
         
