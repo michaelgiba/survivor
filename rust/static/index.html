@@ -1,0 +1,43 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title>Survivor Circles Demo</title>
+    <style>
+        body {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            margin: 0;
+            background-color: #f0f0f0;
+        }
+        canvas {
+            border: 1px solid black;
+            background-color: white;
+        }
+    </style>
+</head>
+<body>
+    <canvas id="canvas" width="600" height="600"></canvas>
+    
+    <script>
+        // Since we're using raw wasm without wasm-bindgen
+        // We need a manual loading approach
+        fetch('/wasm/survivor_lib.wasm')
+            .then(response => response.arrayBuffer())
+            .then(bytes => WebAssembly.instantiate(bytes, {}))
+            .then(results => {
+                const instance = results.instance;
+                // Here you would call exported functions
+                console.log("WASM module loaded:", instance.exports);
+                
+                // If you have a draw_circles export:
+                instance.exports.draw_circles();
+            })
+            .catch(error => {
+                console.error("Error loading WASM:", error);
+            });
+    </script>
+</body>
+</html>
