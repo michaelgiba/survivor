@@ -1,7 +1,7 @@
-use tiny_http::{Server, Response, Request, Header};
 use std::fs::File;
 use std::io::{self, Read};
 use std::path::{Path, PathBuf};
+use tiny_http::{Header, Request, Response, Server};
 
 fn main() -> io::Result<()> {
     let server = Server::http("127.0.0.1:8080").unwrap();
@@ -21,7 +21,7 @@ fn handle_request(request: Request) -> io::Result<()> {
     let file_path = if path.to_str().unwrap_or_default() == "" {
         PathBuf::from("./static/index.html")
     } else if url.starts_with("/wasm/") {
-        PathBuf::from("./survivor-lib/pkg/").join(path.strip_prefix("wasm/").unwrap())
+        PathBuf::from("./survivor-wasm/pkg/").join(path.strip_prefix("wasm/").unwrap())
     } else {
         PathBuf::from("./static/").join(path)
     };
@@ -41,8 +41,9 @@ fn handle_request(request: Request) -> io::Result<()> {
             "application/octet-stream"
         };
 
-        let response = Response::from_data(contents)
-            .with_header(Header::from_bytes(&b"Content-Type"[..], mime_type.as_bytes().to_vec()).unwrap());
+        let response = Response::from_data(contents).with_header(
+            Header::from_bytes(&b"Content-Type"[..], mime_type.as_bytes().to_vec()).unwrap(),
+        );
 
         request.respond(response)?;
     } else {

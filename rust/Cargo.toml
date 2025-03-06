@@ -1,7 +1,9 @@
 [workspace]
+resolver = "2"
 members = [
     "survivor-app",
-    "survivor-lib"
+    "survivor-wasm",
+    "survivor-simulation"
 ]
 
 # These workspace-level dependencies will be shared across projects

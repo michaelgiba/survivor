@@ -1,0 +1,5 @@
+{
+  "num_players": 5,
+  "model_path": "/home/michaelgiba/code/bugs/models/microsoft_Phi-4-mini-instruct-IQ4_XS.gguf",
+  "llama_path": "/home/michaelgiba/code/bugs/ext/llama.cpp/build/bin/llama-cli"
+}

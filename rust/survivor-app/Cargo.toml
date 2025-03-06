@@ -4,5 +4,5 @@ version = "0.1.0"
 edition = "2021"
 
 [dependencies]
-survivor-lib = { path = "../survivor-lib" }
+survivor-wasm = { path = "../survivor-wasm" }
 tiny_http = "0.12.0"
