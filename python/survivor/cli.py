@@ -1,11 +1,12 @@
 import argparse
 import json
 import os
-from _llm_server import LlamaServer
-from _simulation.survivor import SurvivorSimulation
+from survivor.llm_server import LlamaServer
+from survivor.events import EventBuffer
+from survivor._simulation import SurvivorSim
 
 
-def simulate_survivor(args):
+def _start_sim(args):
     """
     Run a survivor simulation using the specified model and configuration.
     """
@@ -15,28 +16,22 @@ def simulate_survivor(args):
     if not os.path.exists(args.config):
         raise ValueError(f"Config file not found: {args.config}")
 
+    # Load configuration JSON
+    with open(args.config, "r") as f:
+        config = json.load(f)
+
     # Create output directory if it doesn't exist
     os.makedirs(os.path.dirname(args.output), exist_ok=True)
 
-    # Initialize and start the LLM server
+    event_buffer = EventBuffer([])
+    # Initialize and run simulation using context manager
     print("Starting LLama.cpp server...")
-    server = LlamaServer(args.model)
-    server.start()
-
-    try:
-        # Initialize and run simulation
+    with LlamaServer(args.model) as server:
         print("Starting simulation...")
-        simulation = SurvivorSimulation(args.config, server)
-        results = simulation.run()
-
-        # Save results
-        simulation.save_results(args.output)
+        SurvivorSim(config, event_buffer).execute()
         print(f"Simulation complete. Results written to: {args.output}")
 
-    finally:
-        # Ensure server is stopped
-        print("Stopping LLama.cpp server...")
-        server.stop()
+    print(event_buffer.full_text())
 
 
 def main():
@@ -50,7 +45,7 @@ def main():
     )
 
     args = parser.parse_args()
-    simulate_survivor(args)
+    _start_sim(args)
 
 
 if __name__ == "__main__":

@@ -4,14 +4,14 @@ from enum import Enum, auto
 
 
 class SurvivorSimEventType(Enum):
-    ENTER_NORMAL_ROUND = auto()  # <
-    PRIVATE_MESSAGE = auto()  # <
-    PUBLIC_STATEMENT = auto()  # <
-    PRIVATE_VOTE = auto()  # <
+    ENTER_NORMAL_ROUND = auto()
+    PRIVATE_MESSAGE = auto()
+    PUBLIC_STATEMENT = auto()
+    PRIVATE_VOTE = auto()
     VOTE_TALLY = auto()
     ELIMINATION = auto()
-    ENTER_FINAL_ROUND = auto()  # <
-    FINAL_PUBLIC_PLEA = auto()  # <
+    ENTER_FINAL_ROUND = auto()
+    FINAL_PUBLIC_PLEA = auto()
     FINAL_VOTE = auto()
     WINNER = auto()
 

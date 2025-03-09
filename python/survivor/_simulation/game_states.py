@@ -2,9 +2,13 @@ import os
 import random
 import json
 from typing import Dict, Any
-from survivor._llm_server import LlamaServer
-from survivor.events import EventBuffer
-from survivor._simluation import player_agent
+from survivor.llm_server import LlamaServer
+from survivor.events import (
+    EventBuffer,
+    SurvivorSimEventType,
+    EnterNormalRoundEventParams,
+)
+from survivor._simulation import player_agent
 from collections import Counter
 
 
@@ -145,9 +149,13 @@ class NormalRoundState:
         self.event_buffer = event_buffer
 
     def execute(self):
-        NormalRoundCommunicationsState(list(player_ids), self.event_buffer).execute()
-        NormalRoundPublicStatementStates(list(player_ids), self.event_buffer).execute()
-        return NormalRoundVoteState(list(player_ids), self.event_buffer).execute()
+        NormalRoundCommunicationsState(
+            list(self.player_ids), self.event_buffer
+        ).execute()
+        NormalRoundPublicStatementStates(
+            list(self.player_ids), self.event_buffer
+        ).execute()
+        return NormalRoundVoteState(list(self.player_ids), self.event_buffer).execute()
 
 
 class FinalRoundPublicPleaState:

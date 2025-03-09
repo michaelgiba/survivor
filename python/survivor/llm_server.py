@@ -2,7 +2,6 @@ import subprocess
 import requests
 import time
 import os
-from contextlib import contextmanager
 from typing import Optional, Dict, Any
 
 
@@ -14,13 +13,22 @@ class LlamaServer:
         self.process: Optional[subprocess.Popen] = None
         self.base_url = f"http://{host}:{port}/completion"
 
+        # Compute the project root (assumes this file is in a subfolder of the project root)
+        self.project_root = os.path.abspath(
+            os.path.join(os.path.dirname(__file__), "..", "..")
+        )
+        # Build the full path to the llama-server executable
+        self.executable = os.path.join(
+            self.project_root, "ext", "llama.cpp", "build", "bin", "llama-server"
+        )
+
     def start(self) -> None:
-        """Start the llama.cpp server"""
+        """Start the llama.cpp server using llama-server executable"""
         if self.process:
             return
 
         cmd = [
-            "./build/bin/server",
+            self.executable,
             "-m",
             self.model_path,
             "--host",
@@ -29,23 +37,18 @@ class LlamaServer:
             str(self.port),
         ]
 
+        # Print the full command
+        print(f"Executing command: {' '.join(cmd)}")
+
+        # Optionally, set the working directory to the directory containing the executable
+        cwd = os.path.dirname(self.executable)
+        # Change to not pipe the output
         self.process = subprocess.Popen(
             cmd,
-            cwd=os.path.join(os.path.dirname(__file__), "ext", "llama.cpp"),
-            stdout=subprocess.PIPE,
-            stderr=subprocess.PIPE,
+            cwd=cwd,
+            # Remove the pipe and let output go to terminal
+            text=True,
         )
-
-        # Wait for server to start
-        max_retries = 10
-        for _ in range(max_retries):
-            try:
-                requests.get(f"http://{self.host}:{self.port}/health")
-                return
-            except requests.exceptions.ConnectionError:
-                time.sleep(1)
-
-        raise RuntimeError("Failed to start llama server")
 
     def stop(self) -> None:
         """Stop the llama.cpp server"""

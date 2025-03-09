@@ -60,15 +60,22 @@ fn create_or_update_chat_button(width: i32, height: i32) -> Result<(), JsValue> 
         .set_property("box-shadow", "inset -5px 0 15px rgba(0, 0, 0, 0.5)")?; // Shadow to enhance CRT look
 
     // Add scanlines effect to sidebar to enhance retro feel
-    overlay.style().set_property("background-image", "linear-gradient(
+    overlay.style().set_property(
+        "background-image",
+        "linear-gradient(
         to bottom,
         rgba(0, 0, 0, 0.1) 0%,
         rgba(0, 0, 0, 0) 50%,
         rgba(0, 0, 0, 0.1) 51%,
         rgba(0, 0, 0, 0) 100%
-    )")?;
-    overlay.style().set_property("background-size", "100% 4px")?;
-    overlay.style().set_property("background-repeat", "repeat")?;
+    )",
+    )?;
+    overlay
+        .style()
+        .set_property("background-size", "100% 4px")?;
+    overlay
+        .style()
+        .set_property("background-repeat", "repeat")?;
 
     // Check if we already have the chat button
     if overlay.children().length() == 0 {
@@ -76,11 +83,17 @@ fn create_or_update_chat_button(width: i32, height: i32) -> Result<(), JsValue> 
         let terminal_header = document.create_element("div")?.dyn_into::<HtmlElement>()?;
         terminal_header.set_id("terminal-header");
         terminal_header.style().set_property("color", "#8DF9FF")?;
-        terminal_header.style().set_property("font-family", "'VT323', monospace")?;
+        terminal_header
+            .style()
+            .set_property("font-family", "'VT323', monospace")?;
         terminal_header.style().set_property("font-size", "18px")?;
         terminal_header.style().set_property("width", "100%")?;
-        terminal_header.style().set_property("text-align", "center")?;
-        terminal_header.style().set_property("margin-bottom", "15px")?;
+        terminal_header
+            .style()
+            .set_property("text-align", "center")?;
+        terminal_header
+            .style()
+            .set_property("margin-bottom", "15px")?;
         terminal_header.set_inner_text("TERMINAL");
         overlay.append_child(&terminal_header)?;
 
@@ -109,7 +122,9 @@ fn create_chat_button(document: &Document) -> Result<HtmlElement, JsValue> {
         .set_property("background-color", "rgba(0, 30, 50, 0.7)")?; // Terminal command background
     button.style().set_property("border", "1px solid #8DF9FF")?;
     button.style().set_property("color", "#8DF9FF")?;
-    button.style().set_property("font-family", "'VT323', monospace")?;
+    button
+        .style()
+        .set_property("font-family", "'VT323', monospace")?;
     button.style().set_property("font-size", "16px")?;
     button.style().set_property("text-align", "left")?;
     button.style().set_property("cursor", "pointer")?;
@@ -123,14 +138,16 @@ fn create_chat_button(document: &Document) -> Result<HtmlElement, JsValue> {
     // Add blinking cursor after the command
     let cursor = document.create_element("span")?.dyn_into::<HtmlElement>()?;
     cursor.set_inner_text("_");
-    cursor.style().set_property("animation", "blink 1s step-end infinite")?;
+    cursor
+        .style()
+        .set_property("animation", "blink 1s step-end infinite")?;
     cursor.style().set_property("margin-left", "4px")?;
     button.append_child(&cursor)?;
 
     // Add click event to show the chat interface in main area
     let click_handler = Closure::wrap(Box::new(move |_event: MouseEvent| {
         ui_interactions::set_active_selection("CHAT_MODE");
-        
+
         // Refresh the main region to display the chat interface
         if let Some(main_area) = web_sys::window()
             .unwrap()
@@ -141,7 +158,7 @@ fn create_chat_button(document: &Document) -> Result<HtmlElement, JsValue> {
             if let Ok(main_element) = main_area.dyn_into::<HtmlElement>() {
                 // Set up the retro chat interface (will be enhanced in main_region.rs)
                 main_element.set_inner_text("");
-                
+
                 // Simulate command executed message
                 let cmd_result = web_sys::window()
                     .unwrap()
@@ -151,11 +168,11 @@ fn create_chat_button(document: &Document) -> Result<HtmlElement, JsValue> {
                     .unwrap()
                     .dyn_into::<HtmlElement>()
                     .unwrap();
-                    
+
                 cmd_result.style().set_property("color", "#50FF50").unwrap();
                 cmd_result.set_inner_text("INITIALIZING COMMUNICATION MODULE...");
                 main_element.append_child(&cmd_result).unwrap();
-                
+
                 web_sys::console::log_1(&"Chat interface activated".into());
             }
         }
@@ -207,13 +224,12 @@ fn create_sidebar_overlay(document: &Document, id: &str) -> Result<web_sys::Elem
 
     // Add custom styling for the retro font
     let style = document.create_element("style")?;
-    style.set_text_content(Some("@import url('https://fonts.googleapis.com/css2?family=VT323&display=swap');"));
+    style.set_text_content(Some(
+        "@import url('https://fonts.googleapis.com/css2?family=VT323&display=swap');",
+    ));
 
     // Append the style to the document body if it doesn't exist yet
-    if document
-        .get_element_by_id("retro-font-style")
-        .is_none()
-    {
+    if document.get_element_by_id("retro-font-style").is_none() {
         style.set_id("retro-font-style");
         document.head().unwrap().append_child(&style)?;
     }
