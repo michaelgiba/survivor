@@ -4,14 +4,14 @@ from enum import Enum, auto
 
 
 class SurvivorSimEventType(Enum):
-    ENTER_NORMAL_ROUND = auto()
-    PRIVATE_MESSAGE = auto()
-    PUBLIC_STATEMENT = auto()
-    PRIVATE_VOTE = auto()
+    ENTER_NORMAL_ROUND = auto()  # <
+    PRIVATE_MESSAGE = auto()  # <
+    PUBLIC_STATEMENT = auto()  # <
+    PRIVATE_VOTE = auto()  # <
     VOTE_TALLY = auto()
     ELIMINATION = auto()
-    ENTER_FINAL_ROUND = auto()
-    FINAL_PUBLIC_PLEA = auto()
+    ENTER_FINAL_ROUND = auto()  # <
+    FINAL_PUBLIC_PLEA = auto()  # <
     FINAL_VOTE = auto()
     WINNER = auto()
 
@@ -115,9 +115,10 @@ class FinalVoteEventParams(EventParams):
 @dataclass
 class WinnerEventParams(EventParams):
     winner_player_id: int
+    message: str
 
     def description(self) -> str:
-        return f"P{self.winner_player_id} is the winner!"
+        return f"P{self.winner_player_id} is the winner! ({message})"
 
 
 EVENT_TYPE_TO_PARAMS = {
