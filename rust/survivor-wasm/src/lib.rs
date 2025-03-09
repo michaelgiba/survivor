@@ -1,42 +1,47 @@
-use std::f64::consts::PI;
 use wasm_bindgen::prelude::*;
-use web_sys::{CanvasRenderingContext2d, HtmlCanvasElement};
+use web_sys::{HtmlCanvasElement, WebGlRenderingContext};
+
+// Import our modules
+mod animation;
+mod main_region;
+mod navbar;
+mod sidebar;
+mod ui_interactions;
 
 #[wasm_bindgen]
-pub fn draw_circles(canvas_id: &str) -> Result<(), JsValue> {
+pub fn draw_main(canvas_id: &str) -> Result<(), JsValue> {
+    // Get canvas and GL context
     let document = web_sys::window().unwrap().document().unwrap();
     let canvas = document
         .get_element_by_id(canvas_id)
         .unwrap()
         .dyn_into::<HtmlCanvasElement>()?;
 
-    let context = canvas
-        .get_context("2d")?
+    // Ensure the canvas has an ID for our overlay elements to reference
+    canvas.set_id(canvas_id);
+
+    let gl = canvas
+        .get_context("webgl")?
         .unwrap()
-        .dyn_into::<CanvasRenderingContext2d>()?;
+        .dyn_into::<WebGlRenderingContext>()?;
 
-    let canvas_width = canvas.width() as f64;
-    let canvas_height = canvas.height() as f64;
+    // Get canvas dimensions
+    let width = canvas.width() as i32;
+    let height = canvas.height() as i32;
 
-    let center_x = canvas_width / 2.0;
-    let center_y = canvas_height / 2.0;
+    // First, draw the animation as a background across the entire canvas
+    animation::draw_background(&gl, width, height)?;
 
-    // Calculate sizes based on canvas dimensions
-    let radius_reference = canvas_width.min(canvas_height) * 0.15;
-    let orbit_radius = radius_reference * 2.5;
-    let small_radius = radius_reference * 0.4;
+    // Enable scissor test for drawing UI panels
+    gl.enable(WebGlRenderingContext::SCISSOR_TEST);
 
-    // Draw 11 green circles in an orbit
-    for i in 0..11 {
-        let angle = (i as f64) * (2.0 * PI / 11.0);
-        let x = center_x + orbit_radius * angle.cos();
-        let y = center_y + orbit_radius * angle.sin();
+    // Draw UI panels (which will be semi-transparent to show animation)
+    sidebar::draw_sidebar(&gl, width, height)?;
+    main_region::draw_main_region(&gl, width, height)?;
+    navbar::draw_navbar(&gl, width, height)?;
 
-        context.begin_path();
-        context.set_fill_style(&JsValue::from_str("green"));
-        context.arc(x, y, small_radius, 0.0, 2.0 * PI)?;
-        context.fill();
-    }
+    // Disable scissor test when done
+    gl.disable(WebGlRenderingContext::SCISSOR_TEST);
 
     Ok(())
 }

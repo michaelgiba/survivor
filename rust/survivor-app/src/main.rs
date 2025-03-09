@@ -18,6 +18,8 @@ fn handle_request(request: Request) -> io::Result<()> {
     let url = request.url();
     let path = Path::new(&url[1..]);
 
+    println!("Request path: {}", url);
+
     let file_path = if path.to_str().unwrap_or_default() == "" {
         PathBuf::from("./static/index.html")
     } else if url.starts_with("/wasm/") {
@@ -25,6 +27,13 @@ fn handle_request(request: Request) -> io::Result<()> {
     } else {
         PathBuf::from("./static/").join(path)
     };
+
+    // Get and log the absolute file path
+    let absolute_path = file_path
+        .canonicalize()
+        .unwrap_or_else(|_| file_path.clone());
+    println!("Mapped to file path: {:?}", file_path);
+    println!("Absolute file path: {:?}", absolute_path);
 
     if file_path.is_file() {
         let mut file = File::open(&file_path)?;
@@ -47,6 +56,7 @@ fn handle_request(request: Request) -> io::Result<()> {
 
         request.respond(response)?;
     } else {
+        println!("File not found: {:?}", file_path);
         request.respond(Response::from_string("404 Not Found").with_status_code(404))?;
     }
 

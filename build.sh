@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-set -euxo pipefail
+set -euo pipefail
 
 MODEL_NAME="bartowski/microsoft_Phi-4-mini-instruct-GGUF/resolve/main/microsoft_Phi-4-mini-instruct-IQ4_XS.gguf"
 MODEL_DIR="models"
@@ -23,5 +23,13 @@ fi
 cd "llama.cpp"
 cmake -B build -DLLAMA_CURL=OFF -DGGML_CUDA=ON
 cmake --build build --config Release
+
+popd
+pushd .
+
+cd rust
+cargo install wasm-pack
+wasm-pack build survivor-wasm/ --target web
+cargo build --package=survivor-app
 
 popd

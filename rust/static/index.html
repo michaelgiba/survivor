@@ -5,26 +5,38 @@
     <title>Survivor Circles Demo</title>
     <style>
         body {
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            height: 100vh;
             margin: 0;
+            padding: 0;
+            overflow: hidden;
             background-color: #f0f0f0;
         }
         canvas {
-            border: 1px solid black;
+            display: block;
+            width: 100vw;
+            height: 100vh;
+            border: none;
             background-color: white;
         }
     </style>
 </head>
 <body>
-    <canvas id="canvas" width="600" height="600"></canvas>
+    <canvas id="canvas"></canvas>
     <script type="module">
-        import init, {draw_circles} from './wasm/survivor_lib.js';
+        import init, {draw_main} from './wasm/survivor_wasm.js';
+        
         async function run() {
             await init();
-            draw_circles("canvas");
+            const canvas = document.getElementById('canvas');
+            canvas.width = window.innerWidth;
+            canvas.height = window.innerHeight;
+            draw_main("canvas");
+            
+            // Resize canvas when window is resized
+            window.addEventListener('resize', () => {
+                canvas.width = window.innerWidth;
+                canvas.height = window.innerHeight;
+                draw_main("canvas");
+            });
         }
         run();
     </script>

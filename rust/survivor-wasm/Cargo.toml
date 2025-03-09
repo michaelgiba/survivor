@@ -11,7 +11,22 @@ web-sys = { version = "0.3", features = [
     "Window", 
     "Element", 
     "HtmlCanvasElement", 
-    "CanvasRenderingContext2d"
+    "CanvasRenderingContext2d",
+    "WebGlRenderingContext",
+    "WebGlProgram",
+    "WebGlShader",
+    "WebGlBuffer",
+    "WebGlUniformLocation",
+    "HtmlElement",
+    "CssStyleDeclaration",
+    "Node",
+    "DomRect",
+    "Text",
+    "MouseEvent",
+    "EventTarget",
+    "HtmlHeadElement",
+    "HtmlCollection",
+    "NodeList"
 ]}
 js-sys = "0.3"
 
