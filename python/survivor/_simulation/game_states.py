@@ -2,12 +2,11 @@ import os
 import random
 import json
 from typing import Dict, Any
-from survivor.llm_server import LlamaServer
 from survivor.events import (
     EventBuffer,
     SurvivorSimEventType,
-    EnterNormalRoundEventParams,
 )
+from survivor import events
 from survivor._simulation import player_agent
 from collections import Counter
 
@@ -19,41 +18,63 @@ class NormalRoundCommunicationsState:
         self.event_buffer = event_buffer
 
     def execute(self) -> int:
-
+        print("Executing Normal Round Communications Stage")
         self.event_buffer.add_event(
             SurvivorSimEventType.ENTER_NORMAL_ROUND,
-            EnterNormalRoundEventParams(self.player_ids),
+            events.EnterNormalRoundEventParams(self.player_ids),
         )
 
-        def _parse_player_id_and_message(raw_answer) -> tuple[int, str]:
-            raise NotImplementedError()
+        def _parse_player_id_and_message(raw_answer: str) -> tuple[int, str]:
+            parsed = json.loads(raw_answer)
+            return parsed["dest_player_id"], parsed["message"]
 
-        player_messages_allowed = {player_id: 5 for player_id in self.player_ids}
+        player_messages_allowed = {player_id: 1 for player_id in self.player_ids}
 
-        while any(remaining_count > 0 for remaining_count in player_messages_allowed):
+        while any(
+            remaining_count > 0 for remaining_count in player_messages_allowed.values()
+        ):
             for sending_player_id in self.player_ids:
                 if player_messages_allowed[sending_player_id] > 0:
+                    msgs_remaining = player_messages_allowed[sending_player_id]
                     if player_agent.ask_yes_or_no(
                         sending_player_id,
                         self.event_buffer,
-                        f"Do you want to send more messages? ({player_messages_allowed!r} remaining)",
+                        f"Do you want to send more messages to other players? ({msgs_remaining!r} remaining)",
                     ):
                         raw_answer = player_agent.ask_player(
                             sending_player_id,
                             self.event_buffer,
-                            "Who do you want to message and what do you want to say?",
+                            "Who do you want to message and what do you want to say before eventually casting an elimination vote?",
+                            response_json_schema={
+                                "type": "object",
+                                "required": ["dest_player_id", "message"],
+                                "properties": {
+                                    "dest_player_id": {
+                                        "type": "integer",
+                                        "description": "The ID of the player to send your message to",
+                                        "enum": list(
+                                            set(self.player_ids) - {sending_player_id}
+                                        ),
+                                    },
+                                    "message": {
+                                        "type": "string",
+                                        "description": "The message you want to send",
+                                    },
+                                },
+                            },
                         )
                         dest_player_id, message = _parse_player_id_and_message(
                             raw_answer
                         )
+
                         self.event_buffer.add_event(
-                            events.SurvivorSimEventType.PRIVATE_MESSAGE,
+                            SurvivorSimEventType.PRIVATE_MESSAGE,
                             events.PrivateMessageEventParams(
                                 sending_player_id, dest_player_id, message
                             ),
                         )
                         player_messages_allowed[sending_player_id] -= 1
-
+                        print(self.event_buffer.full_text())
                     else:
                         player_messages_allowed[sending_player_id] = 0
 
@@ -65,6 +86,7 @@ class NormalRoundPublicStatementStates:
         self.event_buffer = event_buffer
 
     def execute(self):
+        print("Executing Normal Round Public Statements Stage")
         for sending_player_id in self.player_ids:
             raw_answer = player_agent.ask_player(
                 sending_player_id,
@@ -75,8 +97,8 @@ class NormalRoundPublicStatementStates:
                 ),
             )
             self.event_buffer.add_event(
-                events.SurvivorSimEventType.PUBLIC_STATEMENT,
-                events.PrivateMessageEventParams(send_player_id, raw_answer),
+                SurvivorSimEventType.PUBLIC_STATEMENT,
+                events.PublicStatementEventParams(sending_player_id, raw_answer),
             )
 
 
@@ -87,6 +109,7 @@ class NormalRoundVoteState:
         self.event_buffer = event_buffer
 
     def execute(self):
+        print("Executing Normal Round Voting Stage")
 
         def _parse_player_id(raw_answer) -> int:
             raise NotImplementedError()
@@ -106,17 +129,29 @@ class NormalRoundVoteState:
                     f"P{sending_player_id}, who would you like to vote to eliminate? Options: "
                     f"{_options_string()}"
                 ),
+                response_json_schema={
+                    "type": "object",
+                    "required": ["dest_player_id", "message"],
+                    "properties": {
+                        "vote_eliminate_player_id": {
+                            "type": "integer",
+                            "description": "The ID of the player to send your message to",
+                            "enum": list(set(self.player_ids) - {sending_player_id}),
+                        },
+                    },
+                },
             )
+            breakpoint()
             voted_for_player_id = _parse_player_id(raw_answer)
             self.event_buffer.add_event(
-                events.SurvivorSimEventType.PRIVATE_VOTE,
+                SurvivorSimEventType.PRIVATE_VOTE,
                 events.PrivateVoteEventParams(sending_player_id, voted_for_player_id),
             )
             vote_counts[voted_for_player_id] += 1
 
         # Record the vote tally
         self.event_buffer.add_event(
-            events.SurvivorSimEventType.VOTE_TALLY,
+            SurvivorSimEventType.VOTE_TALLY,
             events.VoteTallyEventParams(dict(vote_counts)),
         )
 
@@ -136,7 +171,7 @@ class NormalRoundVoteState:
             else "Max votes. Tie and random selection"
         )
         self.event_buffer.add_event(
-            events.SurvivorSimEventType.ELIMINATION,
+            SurvivorSimEventType.ELIMINATION,
             events.EliminationEventParams(eliminated_player_id, message),
         )
         return eliminated_player_id
@@ -149,6 +184,7 @@ class NormalRoundState:
         self.event_buffer = event_buffer
 
     def execute(self):
+        print("Executing Normal Round Stage")
         NormalRoundCommunicationsState(
             list(self.player_ids), self.event_buffer
         ).execute()
@@ -171,10 +207,10 @@ class FinalRoundPublicPleaState:
         self.event_buffer = event_buffer
 
     def execute(self):
-
+        print("Executing Final Round Public Plea Stage")
         self.event_buffer.add_event(
             SurvivorSimEventType.ENTER_FINAL_ROUND,
-            EnterFinalRoundEventParams(self.remaining_player_ids),
+            events.EnterFinalRoundEventParams(self.remaining_player_ids),
         )
 
         def _parse_player_id(raw_answer) -> (int, str):
@@ -201,7 +237,7 @@ class FinalRoundPublicPleaState:
         )
         voted_for_player_id = _parse_player_id(raw_answer)
         self.event_buffer.add_event(
-            events.SurvivorSimEventType.PRIVATE_VOTE,
+            SurvivorSimEventType.PRIVATE_VOTE,
             events.FinalPublicPleaEventParams(f_pid_0, raw_answer),
         )
 
@@ -211,7 +247,7 @@ class FinalRoundPublicPleaState:
         )
         voted_for_player_id = _parse_player_id(raw_answer)
         self.event_buffer.add_event(
-            events.SurvivorSimEventType.PRIVATE_VOTE,
+            SurvivorSimEventType.PRIVATE_VOTE,
             events.FinalPublicPleaEventParams(f_pid_1, raw_answer),
         )
 
@@ -229,6 +265,7 @@ class FinalRoundVoteState:
         self.event_buffer = event_buffer
 
     def execute(self):
+        print("Executing Final Round Voting Stage")
 
         def _parse_player_id(raw_answer) -> int:
             raise NotImplementedError()
@@ -250,20 +287,20 @@ class FinalRoundVoteState:
             )
             voted_for_player_id = _parse_player_id(raw_answer)
             self.event_buffer.add_event(
-                events.SurvivorSimEventType.FINAL_VOTE,
+                SurvivorSimEventType.FINAL_VOTE,
                 events.FinalVoteEventParams(voting_player_id, voted_for_player_id),
             )
 
             # Count the votes
             vote_counts = Counter()
             for vote_event in self.event_buffer.get_events_of_type(
-                events.SurvivorSimEventType.FINAL_VOTE
+                SurvivorSimEventType.FINAL_VOTE
             ):
                 vote_counts[vote_event.params.target_player_id] += 1
 
             # Record the vote tally
             self.event_buffer.add_event(
-                events.SurvivorSimEventType.FINAL_VOTE_TALLY,
+                SurvivorSimEventType.FINAL_VOTE_TALLY,
                 events.FinalVoteTallyEventParams(dict(vote_counts)),
             )
 
@@ -287,7 +324,7 @@ class FinalRoundVoteState:
 
             # Add the winner event
             self.event_buffer.add_event(
-                events.SurvivorSimEventType.WINNER,
+                SurvivorSimEventType.WINNER,
                 events.WinnerEventParams(winner_player_id, message),
             )
 
@@ -305,6 +342,7 @@ class FinalRoundState:
         self.event_buffer = event_buffer
 
     def execute(self):
+        print("Executing Final Round Stage")
         FinalRoundPublicPleaState(
             self.remaining_player_ids, self.eliminated_player_ids, self.event_buffer
         ).execute()

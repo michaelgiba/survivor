@@ -1,11 +1,12 @@
 from survivor._simulation import game_states
+from survivor._simulation.game_states import FinalRoundState
 
 
 class SurvivorSim:
 
     def __init__(self, config, event_buffer):
         num_players = int(config["num_players"])
-        if num_players <= 3:
+        if num_players < 3:
             raise ValueError(f"Invalid {num_players=}")
 
         self.num_players = num_players

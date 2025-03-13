@@ -1,3 +1,4 @@
+settings.env
 # Rust build artifacts
 */target/*
 **/*.rs.bk

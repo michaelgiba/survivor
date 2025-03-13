@@ -1,9 +1,14 @@
 import argparse
 import json
 import os
-from survivor.llm_server import LlamaServer
 from survivor.events import EventBuffer
 from survivor._simulation import SurvivorSim
+from survivor.llm_util import (
+    LLMBackendType,
+    BACKEND_TYPE_TO_BACKEND,
+    ACTIVE_GENERAL_TYPE,
+)
+from survivor.llm_util import _local_backend
 
 
 def _start_sim(args):
@@ -23,13 +28,14 @@ def _start_sim(args):
     # Create output directory if it doesn't exist
     os.makedirs(os.path.dirname(args.output), exist_ok=True)
 
+    # Configure the local backend with the specified model
+    _local_backend.DEFAULT_MODEL_PATH = args.model
+
     event_buffer = EventBuffer([])
-    # Initialize and run simulation using context manager
-    print("Starting LLama.cpp server...")
-    with LlamaServer(args.model) as server:
-        print("Starting simulation...")
-        SurvivorSim(config, event_buffer).execute()
-        print(f"Simulation complete. Results written to: {args.output}")
+
+    print("Starting simulation...")
+    SurvivorSim(config, event_buffer).execute()
+    print(f"Simulation complete. Results written to: {args.output}")
 
     print(event_buffer.full_text())
 

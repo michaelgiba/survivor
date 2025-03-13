@@ -66,6 +66,8 @@ class LlamaServer:
             "top_p": kwargs.get("top_p", 0.95),
             "stop": kwargs.get("stop", []),
         }
+        if "json_schema" in kwargs:
+            data["json_schema"] = kwargs["json_schema"]
 
         response = requests.post(self.base_url, json=data)
         response.raise_for_status()
@@ -73,7 +75,9 @@ class LlamaServer:
 
     def __enter__(self):
         """Context manager entry"""
-        self.start()
+        # self.start()
+        # time.sleep(3.0)
+
         return self
 
     def __exit__(self, exc_type, exc_val, exc_tb):

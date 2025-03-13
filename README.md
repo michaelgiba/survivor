@@ -7,6 +7,10 @@ This project is inspired by [Elimination Game](https://github.com/lechmazur/elim
 - Executing a simulation of the Survivor game in Python, where players interact with locally served LLMs (using `llama-server` to host Phi-4)
 - Visualization of game rollout through WebAssembly/WebGL, implemented in Rust
 
+
+
+
+
 ## Components and Status
 
 - [x] Basic game structure
