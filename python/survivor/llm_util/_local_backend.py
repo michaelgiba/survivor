@@ -138,7 +138,7 @@ def completion(
     prompt: str,
     system_prompt: str = "",
     temperature: float = 0.8,
-    force_json: bool = False,
+    response_json_schema: dict | None = None,
 ) -> Dict[str, Any]:
     """
     Generate a completion using the local LLM backend.
@@ -155,17 +155,14 @@ def completion(
     """
     server = get_llama_server()
 
-    # Format the full prompt with system prompt if provided
     full_prompt = f"{system_prompt}\n\n{prompt}" if system_prompt else prompt
 
     kwargs = {
         "temperature": temperature,
-        "n_predict": 1024,  # Adjust as needed
     }
 
-    # # Add JSON schema if forcing JSON response
-    # if force_json:
-    #     kwargs["json_schema"] = {"type": "object"}
+    if response_json_schema:
+        kwargs["json_schema"] = response_json_schema
 
     # Query the server
     raw_response = server.query(full_prompt, **kwargs)

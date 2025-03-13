@@ -33,9 +33,17 @@ def prompt_general_info_extraction(prompt: str):
     return content.removesuffix("<|eot_id|>")
 
 
-def prompt(prompt: str, system_prompt: str, temperature: float):
+def prompt(
+    prompt: str,
+    system_prompt: str,
+    temperature: float,
+    response_json_schema: dict | None = None,
+):
     json_response = ACTIVE_GENERAL_BACKEND.completion(
-        prompt, system_prompt=system_prompt, temperature=temperature
+        prompt,
+        system_prompt=system_prompt,
+        temperature=temperature,
+        response_json_schema=response_json_schema,
     )
     # print(json_response)
     content = json_response["choices"][0]["message"]["content"]

@@ -7,7 +7,11 @@ _GROQ_APIKEY = os.environ.get("GROQ_API_KEY")
 
 
 def completion(
-    prompt: str, system_prompt: str, temperature: float, *, force_json: bool = False
+    prompt: str,
+    system_prompt: str,
+    temperature: float,
+    *,
+    response_json_schema: dict | None = None,
 ) -> str:
     time.sleep(1.0)
     result = requests.post(
@@ -24,7 +28,11 @@ def completion(
             ],
             "max_tokens": 4096,
             "temperature": temperature,
-            **({"response_format": {"type": "json_object"}} if force_json else {}),
+            **(
+                {"response_format": {"type": "json_object"}}
+                if response_json_schema is not None
+                else {}
+            ),
         },
     )
     return result.json()

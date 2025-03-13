@@ -118,7 +118,7 @@ class WinnerEventParams(EventParams):
     message: str
 
     def description(self) -> str:
-        return f"P{self.winner_player_id} is the winner! ({message})"
+        return f"P{self.winner_player_id} is the winner! ({self.message})"
 
 
 EVENT_TYPE_TO_PARAMS = {

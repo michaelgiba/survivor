@@ -112,7 +112,8 @@ class NormalRoundVoteState:
         print("Executing Normal Round Voting Stage")
 
         def _parse_player_id(raw_answer) -> int:
-            raise NotImplementedError()
+            parsed = json.loads(raw_answer)
+            return parsed["vote_eliminate_player_id"]
 
         def _options_string():
             random.shuffle(self.player_ids)
@@ -141,7 +142,6 @@ class NormalRoundVoteState:
                     },
                 },
             )
-            breakpoint()
             voted_for_player_id = _parse_player_id(raw_answer)
             self.event_buffer.add_event(
                 SurvivorSimEventType.PRIVATE_VOTE,
@@ -172,7 +172,7 @@ class NormalRoundVoteState:
         )
         self.event_buffer.add_event(
             SurvivorSimEventType.ELIMINATION,
-            events.EliminationEventParams(eliminated_player_id, message),
+            events.PlayerEliminatedEventParams(eliminated_player_id, message),
         )
         return eliminated_player_id
 
@@ -213,12 +213,8 @@ class FinalRoundPublicPleaState:
             events.EnterFinalRoundEventParams(self.remaining_player_ids),
         )
 
-        def _parse_player_id(raw_answer) -> (int, str):
-            raise NotImplementedError()
-
         def _options_string():
-            random.shuffle(self.player_ids)
-            return ", ".join(f"P{pid}" for pid in self.player_ids)
+            return ", ".join(f"P{pid}" for pid in self.remaining_player_ids)
 
         f_pid_0 = self.remaining_player_ids[0]
         f_pid_1 = self.remaining_player_ids[1]
@@ -235,9 +231,8 @@ class FinalRoundPublicPleaState:
         raw_answer = player_agent.ask_player(
             f_pid_0, self.event_buffer, _format_prompt(f_pid_0, f_pid_1)
         )
-        voted_for_player_id = _parse_player_id(raw_answer)
         self.event_buffer.add_event(
-            SurvivorSimEventType.PRIVATE_VOTE,
+            SurvivorSimEventType.FINAL_PUBLIC_PLEA,
             events.FinalPublicPleaEventParams(f_pid_0, raw_answer),
         )
 
@@ -245,9 +240,8 @@ class FinalRoundPublicPleaState:
         raw_answer = player_agent.ask_player(
             f_pid_1, self.event_buffer, _format_prompt(f_pid_1, f_pid_0)
         )
-        voted_for_player_id = _parse_player_id(raw_answer)
         self.event_buffer.add_event(
-            SurvivorSimEventType.PRIVATE_VOTE,
+            SurvivorSimEventType.FINAL_PUBLIC_PLEA,
             events.FinalPublicPleaEventParams(f_pid_1, raw_answer),
         )
 
@@ -268,12 +262,15 @@ class FinalRoundVoteState:
         print("Executing Final Round Voting Stage")
 
         def _parse_player_id(raw_answer) -> int:
-            raise NotImplementedError()
+            parsed = json.loads(raw_answer)
+            return parsed["vote_winner_player_id"]
 
         def _options_string():
             finalists = list(self.remaining_player_ids)
             random.shuffle(finalists)
             return ", ".join(f"P{pid}" for pid in finalists)
+
+        vote_counts = Counter()
 
         for voting_player_id in self.eliminated_player_ids:
             raw_answer = player_agent.ask_player(
@@ -284,24 +281,28 @@ class FinalRoundVoteState:
                     f"P{voting_player_id}, as an eliminated player, you get to vote for the winner. "
                     f"Who would you like to vote for? Options: {_options_string()}"
                 ),
+                response_json_schema={
+                    "type": "object",
+                    "required": ["vote_winner_player_id"],
+                    "properties": {
+                        "vote_winner_player_id": {
+                            "type": "integer",
+                            "enum": list(self.remaining_player_ids),
+                        },
+                    },
+                },
             )
             voted_for_player_id = _parse_player_id(raw_answer)
             self.event_buffer.add_event(
                 SurvivorSimEventType.FINAL_VOTE,
                 events.FinalVoteEventParams(voting_player_id, voted_for_player_id),
             )
-
-            # Count the votes
-            vote_counts = Counter()
-            for vote_event in self.event_buffer.get_events_of_type(
-                SurvivorSimEventType.FINAL_VOTE
-            ):
-                vote_counts[vote_event.params.target_player_id] += 1
+            vote_counts[voted_for_player_id] += 1
 
             # Record the vote tally
             self.event_buffer.add_event(
-                SurvivorSimEventType.FINAL_VOTE_TALLY,
-                events.FinalVoteTallyEventParams(dict(vote_counts)),
+                SurvivorSimEventType.VOTE_TALLY,
+                events.VoteTallyEventParams(dict(vote_counts)),
             )
 
             # Find the player(s) with the maximum votes

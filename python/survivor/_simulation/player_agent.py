@@ -96,18 +96,25 @@ def ask_player(
         message,
     )
 
-    response = prompt_fn(prompt, _system_prompt(player_id), 1.0)
+    response = prompt_fn(
+        prompt,
+        _system_prompt(player_id),
+        1.0,
+        response_json_schema=response_json_schema,
+    )
 
-    if response_json_schema is None:
-        return response
-    else:
-        extracted = prompt_general_info_extraction(
-            f"""You have the following response from an LLM and you need to repackage this
-            into an object which conforms to the 'json-schema' format: {response_json_schema}. 
-            Ok here is the content, respond with the JSON extraction and nothig else:
+    # if response_json_schema is None:
+    #     return response
+    # else:
+    #     extracted = prompt_general_info_extraction(
+    #         f"""You have the following response from an LLM and you need to repackage this
+    #         into an object which conforms to the 'json-schema' format: {response_json_schema}.
+    #         Ok here is the content, respond with the JSON extraction and nothig else:
 
-            {response}
+    #         {response}
 
-            """
-        )
-        return extracted
+    #         """
+    #     )
+    #     return extracted
+
+    return response
