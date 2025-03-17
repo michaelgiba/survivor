@@ -45,6 +45,6 @@ def prompt(
         temperature=temperature,
         response_json_schema=response_json_schema,
     )
-    # print(json_response)
+    print(json_response)
     content = json_response["choices"][0]["message"]["content"]
     return content.removesuffix("<|eot_id|>")

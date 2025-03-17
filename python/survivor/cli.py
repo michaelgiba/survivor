@@ -37,7 +37,8 @@ def _start_sim(args):
     SurvivorSim(config, event_buffer).execute()
     print(f"Simulation complete. Results written to: {args.output}")
 
-    print(event_buffer.full_text())
+    output_data = event_buffer.to_json(indent=2)
+    print(output_data)
 
 
 def main():

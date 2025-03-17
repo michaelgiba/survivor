@@ -143,6 +143,13 @@
             from { background-position: 0 0; }
             to { background-position: 0 100%; }
         }
+
+        /* Playback controls hover states */
+        .playback-button:hover {
+            background: rgba(0, 30, 60, 0.8);
+            border-color: rgba(139, 249, 255, 0.8);
+            box-shadow: 0 0 15px rgba(0, 191, 255, 0.3);
+        }
     </style>
 </head>
 <body>
@@ -153,15 +160,155 @@
         <div class="power-button"></div>
     </div>
     <script type="module">
-        import init, {draw_main} from './wasm/survivor_wasm.js';
+        import init, {draw_main, set_current_step, get_current_step, get_total_steps} from './wasm/survivor_wasm.js';
         
+        let currentRolloutData = null;
+        let isPlaying = false;
+        let playbackInterval = null;
+        const PLAYBACK_SPEED = 1000; // 1 second per step
+
+        async function fetchRollouts() {
+            try {
+                const response = await fetch('/rollouts/');
+                const files = await response.json();
+                return files;
+            } catch (error) {
+                console.error('Error fetching rollouts:', error);
+                return [];
+            }
+        }
+
+        async function loadRollout(filename) {
+            try {
+                const response = await fetch(`/rollouts/${filename}`);
+                const data = await response.json();
+                currentRolloutData = data;
+                return data;
+            } catch (error) {
+                console.error('Error loading rollout:', error);
+                return null;
+            }
+        }
+
+        function updatePlaybackUI() {
+            const playBtn = document.getElementById('playback-play');
+            if (playBtn) {
+                playBtn.textContent = isPlaying ? '⏸' : '▶';
+            }
+        }
+
+        function startPlayback() {
+            if (!isPlaying && currentRolloutData) {
+                isPlaying = true;
+                updatePlaybackUI();
+                
+                playbackInterval = setInterval(() => {
+                    const currentStep = get_current_step();
+                    const totalSteps = get_total_steps();
+                    
+                    if (currentStep !== null && totalSteps !== null) {
+                        if (currentStep < totalSteps - 1) {
+                            set_current_step(currentStep + 1);
+                            draw_main("canvas", JSON.stringify(currentRolloutData));
+                        } else {
+                            stopPlayback();
+                        }
+                    }
+                }, PLAYBACK_SPEED);
+            }
+        }
+
+        function stopPlayback() {
+            isPlaying = false;
+            if (playbackInterval) {
+                clearInterval(playbackInterval);
+                playbackInterval = null;
+            }
+            updatePlaybackUI();
+        }
+
+        function setupPlaybackControls() {
+            document.addEventListener('click', (e) => {
+                if (e.target.id === 'playback-prev') {
+                    const currentStep = get_current_step();
+                    if (currentStep !== null && currentStep > 0) {
+                        stopPlayback();
+                        set_current_step(currentStep - 1);
+                        draw_main("canvas", JSON.stringify(currentRolloutData));
+                    }
+                } else if (e.target.id === 'playback-play') {
+                    if (isPlaying) {
+                        stopPlayback();
+                    } else {
+                        startPlayback();
+                    }
+                } else if (e.target.id === 'playback-next') {
+                    const currentStep = get_current_step();
+                    const totalSteps = get_total_steps();
+                    if (currentStep !== null && totalSteps !== null && currentStep < totalSteps - 1) {
+                        stopPlayback();
+                        set_current_step(currentStep + 1);
+                        draw_main("canvas", JSON.stringify(currentRolloutData));
+                    }
+                }
+            });
+        }
+
+        async function initializeRolloutSelector() {
+            const selector = document.getElementById('rolloutSelector');
+            if (!selector) {
+                console.warn('Waiting for rollout selector to be created...');
+                setTimeout(initializeRolloutSelector, 100);
+                return;
+            }
+
+            // Load rollouts and populate dropdown
+            const rollouts = await fetchRollouts();
+            selector.innerHTML = rollouts.length > 0 
+                ? rollouts.map(file => `<option value="${file}">${file}</option>`).join('')
+                : '<option value="">No rollouts available</option>';
+            
+            // Handle rollout selection
+            selector.addEventListener('change', async (e) => {
+                stopPlayback();
+                const selectedFile = e.target.value;
+                if (selectedFile) {
+                    const rolloutData = await loadRollout(selectedFile);
+                    if (rolloutData) {
+                        set_current_step(0);
+                        draw_main("canvas", JSON.stringify(rolloutData));
+                    }
+                } else {
+                    currentRolloutData = null;
+                    draw_main("canvas", null);
+                }
+            });
+        }
+
         async function run() {
             await init();
             const canvas = document.getElementById('canvas');
+            
+            // Initialize canvas
             canvas.width = window.innerWidth;
             canvas.height = window.innerHeight;
-            draw_main("canvas");
             
+            // Initial draw to create navbar and other elements
+            draw_main("canvas", null);
+            
+            // Initialize rollout selector after WASM has created the navbar
+            initializeRolloutSelector();
+            
+            // Setup playback controls
+            setupPlaybackControls();
+            
+            // Handle window resize
+            window.addEventListener('resize', () => {
+                canvas.width = window.innerWidth;
+                canvas.height = window.innerHeight;
+                draw_main("canvas", currentRolloutData ? JSON.stringify(currentRolloutData) : null);
+            });
+
             // Simulate CRT on/off flicker on startup
             const container = document.querySelector('.crt-container');
             container.style.opacity = 0;
@@ -179,13 +326,6 @@
                     }, 100);
                 }, 100);
             }, 200);
-            
-            // Resize canvas when window is resized
-            window.addEventListener('resize', () => {
-                canvas.width = window.innerWidth;
-                canvas.height = window.innerHeight;
-                draw_main("canvas");
-            });
         }
         run();
     </script>

@@ -1,6 +1,7 @@
 import abc
-from dataclasses import dataclass
+from dataclasses import dataclass, asdict
 from enum import Enum, auto
+import json
 
 
 class SurvivorSimEventType(Enum):
@@ -140,6 +141,15 @@ class SurivivorSimConfig:
     num_survivors: int
 
 
+class EnumEncoder(json.JSONEncoder):
+    """Custom JSON encoder to handle Enum serialization"""
+
+    def default(self, obj):
+        if isinstance(obj, Enum):
+            return obj.name
+        return super().default(obj)
+
+
 @dataclass
 class SurvivorSimEvent:
     seq_number: int
@@ -151,6 +161,15 @@ class SurvivorSimEvent:
 
     def as_text(self):
         return f"{self.event_type.name}: {self.event_params.description()} (event_sequence={self.seq_number})"
+
+    def to_dict(self):
+        """Convert event to a dictionary for JSON serialization"""
+        return {
+            "seq_number": self.seq_number,
+            "event_type": self.event_type.name,
+            "event_params_type": type(self.event_params).__name__,
+            "event_params": asdict(self.event_params),
+        }
 
 
 @dataclass
@@ -184,3 +203,32 @@ class EventBuffer:
 
     def full_text(self):
         return "\n".join(event.as_text() for event in self.events)
+
+    def to_json(self, indent=None):
+        """Serialize the EventBuffer to JSON string"""
+        events_dict = {"events": [event.to_dict() for event in self.events]}
+        return json.dumps(events_dict, cls=EnumEncoder, indent=indent)
+
+    @classmethod
+    def from_json(cls, json_str):
+        """Create an EventBuffer from a JSON string"""
+        data = json.loads(json_str)
+        events = []
+
+        for event_data in data["events"]:
+            # Get the appropriate EventParams class
+            event_type = SurvivorSimEventType[event_data["event_type"]]
+            params_class = EVENT_TYPE_TO_PARAMS[event_type]
+
+            # Create the event params instance
+            event_params = params_class(**event_data["event_params"])
+
+            # Create the SurvivorSimEvent instance
+            event = SurvivorSimEvent(
+                seq_number=event_data["seq_number"],
+                event_type=event_type,
+                event_params=event_params,
+            )
+            events.append(event)
+
+        return cls(events)
