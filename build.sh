@@ -27,9 +27,8 @@ cmake --build build --config Release
 popd
 pushd .
 
-cd rust
-cargo install wasm-pack
-wasm-pack build survivor-wasm/ --target web
-cargo build --package=survivor-app
+cd typescript/
+npx vite
+
 
 popd

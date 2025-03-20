@@ -2,5 +2,6 @@
 
 cd $(dirname $0)
 ./build.sh
-cd rust/
-cargo run
+
+cd typescript/
+npx vite
