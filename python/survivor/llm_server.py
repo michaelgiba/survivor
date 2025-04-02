@@ -75,8 +75,8 @@ class LlamaServer:
 
     def __enter__(self):
         """Context manager entry"""
-        # self.start()
-        # time.sleep(3.0)
+        self.start()
+        time.sleep(3.0)
 
         return self
 

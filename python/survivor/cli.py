@@ -1,7 +1,6 @@
 import argparse
 import json
 import os
-from survivor.events import EventBuffer
 from survivor._simulation import SurvivorSim
 from survivor.llm_util import (
     LLMBackendType,
@@ -9,6 +8,7 @@ from survivor.llm_util import (
     ACTIVE_GENERAL_TYPE,
 )
 from survivor.llm_util import _local_backend
+import plomp
 
 
 def _start_sim(args):
@@ -31,14 +31,13 @@ def _start_sim(args):
     # Configure the local backend with the specified model
     _local_backend.DEFAULT_MODEL_PATH = args.model
 
-    event_buffer = EventBuffer([])
-
     print("Starting simulation...")
-    SurvivorSim(config, event_buffer).execute()
+    plomp.write_html(plomp.buffer(), "/home/michaelgiba/out.html")
+
+    SurvivorSim(config).execute()
     print(f"Simulation complete. Results written to: {args.output}")
 
-    output_data = event_buffer.to_json(indent=2)
-    print(output_data)
+    plomp.write_html(plomp.buffer(), "/home/michaelgiba/out.html")
 
 
 def main():

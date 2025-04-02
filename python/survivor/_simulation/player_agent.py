@@ -1,6 +1,6 @@
-from survivor.events import EventBuffer
 import json
 from survivor.llm_util import prompt as prompt_fn, prompt_general_info_extraction
+import plomp
 
 GAME_DESCRIPTION_PROMPT = """
 Game Description
@@ -37,16 +37,14 @@ When only two players remain the final round kicks off.
 """
 
 
-def _format_prompt_given_context(
-    player_id: int,
-    event_buffer: EventBuffer,
-    message: str,
-) -> str:
+def _format_prompt_given_context(context, message: str) -> str:
 
     return f"""
-    The game context visible to you so far
+    The game context visible to you so far.
 
-    <visible_context>{event_buffer.full_text()}</visible_context>
+    <visible_context>
+        {context}
+    </visible_context>
 
     Answer the following question:
 
@@ -67,15 +65,37 @@ def _system_prompt(player_id: int):
     """
 
 
+def _player_context(player_id):
+    query_result = (
+        plomp.buffer()
+        .filter(tags_filter={"visibility": "public"})
+        .union(
+            plomp.buffer().filter(
+                tags_filter={"visibility": "private", f"p{player_id}_visible": True},
+                how="all",
+            )
+        )
+    )
+    # For debugging.
+    query_result.record(tags={})
+
+    intro = f"""
+        You are Player {player_id} (P{player_id}). Here is what has happened so far
+        from your perspective:
+    """
+    items = "\n".join(
+        str(item.to_dict()["data"]["payload"]["message"]) for item in query_result
+    )
+    return f"{intro}\n{items}"
+
+
 def ask_yes_or_no(
     player_id: int,
-    event_buffer: EventBuffer,
     message: str,
 ) -> bool:
 
     prompt = _format_prompt_given_context(
-        player_id,
-        event_buffer.visible_events(player_id),
+        _player_context(player_id),
         f"Only answer YES or NO to the following question. {message!r}. YES or NO",
     )
 
@@ -85,14 +105,12 @@ def ask_yes_or_no(
 
 def ask_player(
     player_id: int,
-    event_buffer: EventBuffer,
     message: str,
     response_json_schema: dict | None = None,
 ) -> str:
 
     prompt = _format_prompt_given_context(
-        player_id,
-        event_buffer.visible_events(player_id),
+        _player_context(player_id),
         message,
     )
 

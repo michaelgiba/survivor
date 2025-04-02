@@ -152,83 +152,14 @@ class EnumEncoder(json.JSONEncoder):
 
 @dataclass
 class SurvivorSimEvent:
-    seq_number: int
     event_type: SurvivorSimEventType
     event_params: EventParams
-
-    def is_visible_to(self, player_id: int) -> bool:
-        return self.event_params.is_visible_to(player_id)
-
-    def as_text(self):
-        return f"{self.event_type.name}: {self.event_params.description()} (event_sequence={self.seq_number})"
 
     def to_dict(self):
         """Convert event to a dictionary for JSON serialization"""
         return {
-            "seq_number": self.seq_number,
             "event_type": self.event_type.name,
             "event_params_type": type(self.event_params).__name__,
             "event_params": asdict(self.event_params),
+            "message": self.event_params.description(),
         }
-
-
-@dataclass
-class EventBuffer:
-    events: list[SurvivorSimEvent]
-
-    def next_seq_number(self) -> int:
-        if len(self.events) == 0:
-            return 0
-        else:
-            return max(event.seq_number for event in self.events) + 1
-
-    def visible_events_as_of(self, to_player_id: int, as_of_seq: int) -> "EventBuffer":
-        visible_buffer = []
-        for event in self.events:
-            if event.seq_number > as_of_seq:
-                break
-            if event.is_visible_to(to_player_id):
-                visible_buffer.append(event)
-
-        return self.__class__(visible_buffer)
-
-    def visible_events(self, to_player_id: int) -> "EventBuffer":
-        return self.visible_events_as_of(to_player_id, self.next_seq_number())
-
-    def add_event(self, event_type: SurvivorSimEventType, event_params: EventParams):
-        assert type(event_params) == EVENT_TYPE_TO_PARAMS[event_type]
-
-        seq_number = self.next_seq_number()
-        self.events.append(SurvivorSimEvent(seq_number, event_type, event_params))
-
-    def full_text(self):
-        return "\n".join(event.as_text() for event in self.events)
-
-    def to_json(self, indent=None):
-        """Serialize the EventBuffer to JSON string"""
-        events_dict = {"events": [event.to_dict() for event in self.events]}
-        return json.dumps(events_dict, cls=EnumEncoder, indent=indent)
-
-    @classmethod
-    def from_json(cls, json_str):
-        """Create an EventBuffer from a JSON string"""
-        data = json.loads(json_str)
-        events = []
-
-        for event_data in data["events"]:
-            # Get the appropriate EventParams class
-            event_type = SurvivorSimEventType[event_data["event_type"]]
-            params_class = EVENT_TYPE_TO_PARAMS[event_type]
-
-            # Create the event params instance
-            event_params = params_class(**event_data["event_params"])
-
-            # Create the SurvivorSimEvent instance
-            event = SurvivorSimEvent(
-                seq_number=event_data["seq_number"],
-                event_type=event_type,
-                event_params=event_params,
-            )
-            events.append(event)
-
-        return cls(events)

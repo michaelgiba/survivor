@@ -129,7 +129,7 @@ def get_llama_server(model_path=DEFAULT_MODEL_PATH):
     global _llama_server
     if _llama_server is None:
         _llama_server = LlamaServer(model_path)
-        # _llama_server.start()
+        _llama_server.start()
         _llama_server.wait_until_healthy()
     return _llama_server
 

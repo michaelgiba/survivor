@@ -14,6 +14,7 @@ if [ ! -f "$MODEL_FILE" ]; then
 fi
 
 pushd .
+mkdir -p ext
 cd ext
 
 if [ ! -d "llama.cpp" ]; then
@@ -23,12 +24,3 @@ fi
 cd "llama.cpp"
 cmake -B build -DLLAMA_CURL=OFF -DGGML_CUDA=ON
 cmake --build build --config Release
-
-popd
-pushd .
-
-cd typescript/
-npx vite
-
-
-popd

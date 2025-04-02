@@ -3,25 +3,32 @@ import random
 import json
 from typing import Dict, Any
 from survivor.events import (
-    EventBuffer,
     SurvivorSimEventType,
+    SurvivorSimEvent,
 )
 from survivor import events
 from survivor._simulation import player_agent
 from collections import Counter
+import plomp
 
 
 class NormalRoundCommunicationsState:
 
-    def __init__(self, player_ids: list[int], event_buffer: EventBuffer):
-        self.player_ids = player_ids
-        self.event_buffer = event_buffer
+    def __init__(self, player_ids: list[int]):
+        self.player_ids = list(player_ids)
 
     def execute(self) -> int:
         print("Executing Normal Round Communications Stage")
-        self.event_buffer.add_event(
-            SurvivorSimEventType.ENTER_NORMAL_ROUND,
-            events.EnterNormalRoundEventParams(self.player_ids),
+
+        plomp.record_event(
+            SurvivorSimEvent(
+                SurvivorSimEventType.ENTER_NORMAL_ROUND,
+                events.EnterNormalRoundEventParams(self.player_ids),
+            ).to_dict(),
+            tags={
+                "event_type": SurvivorSimEventType.ENTER_NORMAL_ROUND.name,
+                "visibility": "public",
+            },
         )
 
         def _parse_player_id_and_message(raw_answer: str) -> tuple[int, str]:
@@ -38,12 +45,10 @@ class NormalRoundCommunicationsState:
                     msgs_remaining = player_messages_allowed[sending_player_id]
                     if player_agent.ask_yes_or_no(
                         sending_player_id,
-                        self.event_buffer,
                         f"Do you want to send more messages to other players? ({msgs_remaining!r} remaining)",
                     ):
                         raw_answer = player_agent.ask_player(
                             sending_player_id,
-                            self.event_buffer,
                             "Who do you want to message and what do you want to say before eventually casting an elimination vote?",
                             response_json_schema={
                                 "type": "object",
@@ -63,50 +68,63 @@ class NormalRoundCommunicationsState:
                                 },
                             },
                         )
+
                         dest_player_id, message = _parse_player_id_and_message(
                             raw_answer
                         )
 
-                        self.event_buffer.add_event(
-                            SurvivorSimEventType.PRIVATE_MESSAGE,
-                            events.PrivateMessageEventParams(
-                                sending_player_id, dest_player_id, message
-                            ),
+                        plomp.record_event(
+                            SurvivorSimEvent(
+                                SurvivorSimEventType.PRIVATE_MESSAGE,
+                                events.PrivateMessageEventParams(
+                                    sending_player_id, dest_player_id, message
+                                ),
+                            ).to_dict(),
+                            tags={
+                                "visibility": "private",
+                                "event_type": SurvivorSimEventType.PRIVATE_MESSAGE.name,
+                                f"p{sending_player_id}_visible": True,
+                                f"p{dest_player_id}_visible": True,
+                            },
                         )
+
                         player_messages_allowed[sending_player_id] -= 1
-                        print(self.event_buffer.full_text())
                     else:
                         player_messages_allowed[sending_player_id] = 0
 
 
 class NormalRoundPublicStatementStates:
 
-    def __init__(self, player_ids: list[int], event_buffer: EventBuffer):
-        self.player_ids = player_ids
-        self.event_buffer = event_buffer
+    def __init__(self, player_ids: list[int]):
+        self.player_ids = list(player_ids)
 
     def execute(self):
         print("Executing Normal Round Public Statements Stage")
         for sending_player_id in self.player_ids:
             raw_answer = player_agent.ask_player(
                 sending_player_id,
-                self.event_buffer,
                 (
                     f"It is time for your public statement before the eliminiation vote. "
                     f"P{sending_player_id}, what would you like to say publicly?"
                 ),
             )
-            self.event_buffer.add_event(
-                SurvivorSimEventType.PUBLIC_STATEMENT,
-                events.PublicStatementEventParams(sending_player_id, raw_answer),
+
+            plomp.record_event(
+                SurvivorSimEvent(
+                    SurvivorSimEventType.PUBLIC_STATEMENT,
+                    events.PublicStatementEventParams(sending_player_id, raw_answer),
+                ).to_dict(),
+                tags={
+                    "visibility": "public",
+                    "event_type": SurvivorSimEventType.PUBLIC_STATEMENT.name,
+                },
             )
 
 
 class NormalRoundVoteState:
 
-    def __init__(self, player_ids: list[int], event_buffer: EventBuffer):
-        self.player_ids = player_ids
-        self.event_buffer = event_buffer
+    def __init__(self, player_ids: list[int]):
+        self.player_ids = list(player_ids)
 
     def execute(self):
         print("Executing Normal Round Voting Stage")
@@ -124,7 +142,6 @@ class NormalRoundVoteState:
         for sending_player_id in self.player_ids:
             raw_answer = player_agent.ask_player(
                 sending_player_id,
-                self.event_buffer,
                 (
                     f"It is time for your eliminiation vote. "
                     f"P{sending_player_id}, who would you like to vote to eliminate? Options: "
@@ -132,7 +149,7 @@ class NormalRoundVoteState:
                 ),
                 response_json_schema={
                     "type": "object",
-                    "required": ["dest_player_id", "message"],
+                    "required": ["vote_eliminate_player_id"],
                     "properties": {
                         "vote_eliminate_player_id": {
                             "type": "integer",
@@ -143,16 +160,33 @@ class NormalRoundVoteState:
                 },
             )
             voted_for_player_id = _parse_player_id(raw_answer)
-            self.event_buffer.add_event(
-                SurvivorSimEventType.PRIVATE_VOTE,
-                events.PrivateVoteEventParams(sending_player_id, voted_for_player_id),
+
+            plomp.record_event(
+                SurvivorSimEvent(
+                    SurvivorSimEventType.PRIVATE_VOTE,
+                    events.PrivateVoteEventParams(
+                        sending_player_id, voted_for_player_id
+                    ),
+                ).to_dict(),
+                tags={
+                    "visibility": "private",
+                    f"p{sending_player_id}_visible": True,
+                    "event_type": SurvivorSimEventType.PRIVATE_VOTE.name,
+                },
             )
+
             vote_counts[voted_for_player_id] += 1
 
         # Record the vote tally
-        self.event_buffer.add_event(
-            SurvivorSimEventType.VOTE_TALLY,
-            events.VoteTallyEventParams(dict(vote_counts)),
+        plomp.record_event(
+            SurvivorSimEvent(
+                SurvivorSimEventType.VOTE_TALLY,
+                events.VoteTallyEventParams(dict(vote_counts)),
+            ).to_dict(),
+            tags={
+                "visibility": "public",
+                "event_type": SurvivorSimEventType.VOTE_TALLY.name,
+            },
         )
 
         # Find the player(s) with the maximum votes
@@ -170,28 +204,34 @@ class NormalRoundVoteState:
             if len(most_voted_players) == 1
             else "Max votes. Tie and random selection"
         )
-        self.event_buffer.add_event(
-            SurvivorSimEventType.ELIMINATION,
-            events.PlayerEliminatedEventParams(eliminated_player_id, message),
+
+        # Record the vote tally
+        plomp.record_event(
+            SurvivorSimEvent(
+                SurvivorSimEventType.ELIMINATION,
+                events.PlayerEliminatedEventParams(eliminated_player_id, message),
+            ).to_dict(),
+            tags={
+                "visibility": "public",
+                "event_type": SurvivorSimEventType.ELIMINATION.name,
+            },
         )
+
+        plomp.write_html(plomp.buffer(), "/home/michaelgiba/survivor-test.html")
+
         return eliminated_player_id
 
 
 class NormalRoundState:
 
-    def __init__(self, player_ids: list[int], event_buffer: EventBuffer):
-        self.player_ids = player_ids
-        self.event_buffer = event_buffer
+    def __init__(self, player_ids: list[int]):
+        self.player_ids = list(player_ids)
 
     def execute(self):
         print("Executing Normal Round Stage")
-        NormalRoundCommunicationsState(
-            list(self.player_ids), self.event_buffer
-        ).execute()
-        NormalRoundPublicStatementStates(
-            list(self.player_ids), self.event_buffer
-        ).execute()
-        return NormalRoundVoteState(list(self.player_ids), self.event_buffer).execute()
+        NormalRoundCommunicationsState(self.player_ids).execute()
+        NormalRoundPublicStatementStates(self.player_ids).execute()
+        return NormalRoundVoteState(self.player_ids).execute()
 
 
 class FinalRoundPublicPleaState:
@@ -200,17 +240,21 @@ class FinalRoundPublicPleaState:
         self,
         remaining_player_ids: tuple[int, int],
         eliminated_player_ids: tuple[int, int],
-        event_buffer: EventBuffer,
     ):
-        self.remaining_player_ids = remaining_player_ids
-        self.eliminated_player_ids = eliminated_player_ids
-        self.event_buffer = event_buffer
+        self.remaining_player_ids = tuple(remaining_player_ids)
+        self.eliminated_player_ids = tuple(eliminated_player_ids)
 
     def execute(self):
         print("Executing Final Round Public Plea Stage")
-        self.event_buffer.add_event(
-            SurvivorSimEventType.ENTER_FINAL_ROUND,
-            events.EnterFinalRoundEventParams(self.remaining_player_ids),
+        plomp.record_event(
+            SurvivorSimEvent(
+                SurvivorSimEventType.ENTER_FINAL_ROUND,
+                events.EnterFinalRoundEventParams(self.remaining_player_ids),
+            ).to_dict(),
+            tags={
+                "visibility": "public",
+                "event_type": SurvivorSimEventType.ENTER_FINAL_ROUND.name,
+            },
         )
 
         def _options_string():
@@ -228,21 +272,31 @@ class FinalRoundPublicPleaState:
             )
 
         # finalist 1
-        raw_answer = player_agent.ask_player(
-            f_pid_0, self.event_buffer, _format_prompt(f_pid_0, f_pid_1)
-        )
-        self.event_buffer.add_event(
-            SurvivorSimEventType.FINAL_PUBLIC_PLEA,
-            events.FinalPublicPleaEventParams(f_pid_0, raw_answer),
+        raw_answer = player_agent.ask_player(f_pid_0, _format_prompt(f_pid_0, f_pid_1))
+
+        plomp.record_event(
+            SurvivorSimEvent(
+                SurvivorSimEventType.FINAL_PUBLIC_PLEA,
+                events.FinalPublicPleaEventParams(f_pid_0, raw_answer),
+            ).to_dict(),
+            tags={
+                "visibility": "public",
+                "event_type": SurvivorSimEventType.FINAL_PUBLIC_PLEA.name,
+            },
         )
 
         # finalist 2
-        raw_answer = player_agent.ask_player(
-            f_pid_1, self.event_buffer, _format_prompt(f_pid_1, f_pid_0)
-        )
-        self.event_buffer.add_event(
-            SurvivorSimEventType.FINAL_PUBLIC_PLEA,
-            events.FinalPublicPleaEventParams(f_pid_1, raw_answer),
+        raw_answer = player_agent.ask_player(f_pid_1, _format_prompt(f_pid_1, f_pid_0))
+
+        plomp.record_event(
+            SurvivorSimEvent(
+                SurvivorSimEventType.FINAL_PUBLIC_PLEA,
+                events.FinalPublicPleaEventParams(f_pid_1, raw_answer),
+            ).to_dict(),
+            tags={
+                "visibility": "public",
+                "event_type": SurvivorSimEventType.FINAL_PUBLIC_PLEA.name,
+            },
         )
 
 
@@ -252,11 +306,9 @@ class FinalRoundVoteState:
         self,
         remaining_player_ids: tuple[int, int],
         eliminated_player_ids: list[int],
-        event_buffer: EventBuffer,
     ):
-        self.remaining_player_ids = remaining_player_ids
-        self.eliminated_player_ids = eliminated_player_ids
-        self.event_buffer = event_buffer
+        self.remaining_player_ids = tuple(remaining_player_ids)
+        self.eliminated_player_ids = list(eliminated_player_ids)
 
     def execute(self):
         print("Executing Final Round Voting Stage")
@@ -275,7 +327,6 @@ class FinalRoundVoteState:
         for voting_player_id in self.eliminated_player_ids:
             raw_answer = player_agent.ask_player(
                 voting_player_id,
-                self.event_buffer,
                 (
                     f"It is time for your final vote. "
                     f"P{voting_player_id}, as an eliminated player, you get to vote for the winner. "
@@ -293,16 +344,30 @@ class FinalRoundVoteState:
                 },
             )
             voted_for_player_id = _parse_player_id(raw_answer)
-            self.event_buffer.add_event(
-                SurvivorSimEventType.FINAL_VOTE,
-                events.FinalVoteEventParams(voting_player_id, voted_for_player_id),
+
+            plomp.record_event(
+                SurvivorSimEvent(
+                    SurvivorSimEventType.FINAL_VOTE,
+                    events.FinalVoteEventParams(voting_player_id, voted_for_player_id),
+                ).to_dict(),
+                tags={
+                    "visibility": "public",
+                    "event_type": SurvivorSimEventType.FINAL_VOTE.name,
+                },
             )
+
             vote_counts[voted_for_player_id] += 1
 
             # Record the vote tally
-            self.event_buffer.add_event(
-                SurvivorSimEventType.VOTE_TALLY,
-                events.VoteTallyEventParams(dict(vote_counts)),
+            plomp.record_event(
+                SurvivorSimEvent(
+                    SurvivorSimEventType.VOTE_TALLY,
+                    events.VoteTallyEventParams(dict(vote_counts)),
+                ).to_dict(),
+                tags={
+                    "visibility": "public",
+                    "event_type": SurvivorSimEventType.VOTE_TALLY.name,
+                },
             )
 
             # Find the player(s) with the maximum votes
@@ -324,9 +389,15 @@ class FinalRoundVoteState:
             )
 
             # Add the winner event
-            self.event_buffer.add_event(
-                SurvivorSimEventType.WINNER,
-                events.WinnerEventParams(winner_player_id, message),
+            plomp.record_event(
+                SurvivorSimEvent(
+                    SurvivorSimEventType.WINNER,
+                    events.WinnerEventParams(winner_player_id, message),
+                ).to_dict(),
+                tags={
+                    "visibility": "public",
+                    "event_type": SurvivorSimEventType.WINNER.name,
+                },
             )
 
 
@@ -336,18 +407,16 @@ class FinalRoundState:
         self,
         remaining_player_ids: tuple[int, int],
         eliminated_player_ids: list[int],
-        event_buffer: EventBuffer,
     ):
         self.remaining_player_ids = remaining_player_ids
         self.eliminated_player_ids = eliminated_player_ids
-        self.event_buffer = event_buffer
 
     def execute(self):
         print("Executing Final Round Stage")
         FinalRoundPublicPleaState(
-            self.remaining_player_ids, self.eliminated_player_ids, self.event_buffer
+            self.remaining_player_ids, self.eliminated_player_ids
         ).execute()
 
         return FinalRoundVoteState(
-            self.remaining_player_ids, self.eliminated_player_ids, self.event_buffer
+            self.remaining_player_ids, self.eliminated_player_ids
         ).execute()

@@ -4,14 +4,13 @@ from survivor._simulation.game_states import FinalRoundState
 
 class SurvivorSim:
 
-    def __init__(self, config, event_buffer):
+    def __init__(self, config):
         num_players = int(config["num_players"])
         if num_players < 3:
             raise ValueError(f"Invalid {num_players=}")
 
         self.num_players = num_players
         self.players = list(range(num_players))
-        self.event_buffer = event_buffer
 
     def execute(self):
 
@@ -19,16 +18,13 @@ class SurvivorSim:
         eliminated_players = set()
 
         while len(current_players) != 2:
-            eliminated_id = game_states.NormalRoundState(
-                list(current_players), self.event_buffer
-            ).execute()
+            eliminated_id = game_states.NormalRoundState(current_players).execute()
             current_players.remove(eliminated_id)
             eliminated_players.add(eliminated_id)
 
         FinalRoundState(
             tuple(current_players),
             list(eliminated_players),
-            self.event_buffer,
         ).execute()
 
 
