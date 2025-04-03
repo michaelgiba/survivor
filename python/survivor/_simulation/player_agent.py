@@ -1,6 +1,7 @@
 import json
 from survivor.llm_util import prompt as prompt_fn, prompt_general_info_extraction
 import plomp
+from textwrap import dedent
 
 GAME_DESCRIPTION_PROMPT = """
 Game Description
@@ -38,31 +39,28 @@ When only two players remain the final round kicks off.
 
 
 def _format_prompt_given_context(context, message: str) -> str:
-
     return f"""
-    The game context visible to you so far.
+The game context visible to you so far.
 
-    <visible_context>
-        {context}
-    </visible_context>
+{context}
 
-    Answer the following question:
+Answer the following question:
 
-    <question>{message}</question>
+<question>{message}</question>
 
-    Respond to the question only and say absolutely nothing else.
-    """
+Respond to the question only and say absolutely nothing else.
+""".strip()
 
 
 def _system_prompt(player_id: int):
     return f"""
-    You are an agent named P{player_id} playing a game called survivor. 
-    
-    Given the game description 
-    
-    <game_description>{GAME_DESCRIPTION_PROMPT}</game_description>
+You are an agent named P{player_id} playing a game called survivor. 
 
-    """
+Given the game description 
+
+<game_description>{GAME_DESCRIPTION_PROMPT}</game_description>
+
+""".strip()
 
 
 def _player_context(player_id):
@@ -77,16 +75,25 @@ def _player_context(player_id):
         )
     )
     # For debugging.
-    query_result.record(tags={})
+    query_result.record(
+        tags={
+            f"p{player_id}_visible": True,
+            "thinking": True,
+        }
+    )
 
-    intro = f"""
+    intro = dedent(
+        f"""
         You are Player {player_id} (P{player_id}). Here is what has happened so far
         from your perspective:
     """
-    items = "\n".join(
-        str(item.to_dict()["data"]["payload"]["message"]) for item in query_result
     )
-    return f"{intro}\n{items}"
+    items = "\n".join(
+        f"{i + 1}. {message_from_query}"
+        for i, item in enumerate(query_result)
+        for message_from_query in [item.to_dict()["data"]["payload"]["message"]]
+    )
+    return dedent(f"{intro}\n{items}")
 
 
 def ask_yes_or_no(
@@ -120,19 +127,5 @@ def ask_player(
         1.0,
         response_json_schema=response_json_schema,
     )
-
-    # if response_json_schema is None:
-    #     return response
-    # else:
-    #     extracted = prompt_general_info_extraction(
-    #         f"""You have the following response from an LLM and you need to repackage this
-    #         into an object which conforms to the 'json-schema' format: {response_json_schema}.
-    #         Ok here is the content, respond with the JSON extraction and nothig else:
-
-    #         {response}
-
-    #         """
-    #     )
-    #     return extracted
 
     return response

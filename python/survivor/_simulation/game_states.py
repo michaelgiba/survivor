@@ -10,6 +10,7 @@ from survivor import events
 from survivor._simulation import player_agent
 from collections import Counter
 import plomp
+from typing import Callable
 
 
 class NormalRoundCommunicationsState:
@@ -17,7 +18,7 @@ class NormalRoundCommunicationsState:
     def __init__(self, player_ids: list[int]):
         self.player_ids = list(player_ids)
 
-    def execute(self) -> int:
+    def execute(self, *, write_progress: Callable[[], None]):
         print("Executing Normal Round Communications Stage")
 
         plomp.record_event(
@@ -30,6 +31,7 @@ class NormalRoundCommunicationsState:
                 "visibility": "public",
             },
         )
+        write_progress()
 
         def _parse_player_id_and_message(raw_answer: str) -> tuple[int, str]:
             parsed = json.loads(raw_answer)
@@ -87,6 +89,7 @@ class NormalRoundCommunicationsState:
                                 f"p{dest_player_id}_visible": True,
                             },
                         )
+                        write_progress()
 
                         player_messages_allowed[sending_player_id] -= 1
                     else:
@@ -98,7 +101,7 @@ class NormalRoundPublicStatementStates:
     def __init__(self, player_ids: list[int]):
         self.player_ids = list(player_ids)
 
-    def execute(self):
+    def execute(self, *, write_progress: Callable[[], None]):
         print("Executing Normal Round Public Statements Stage")
         for sending_player_id in self.player_ids:
             raw_answer = player_agent.ask_player(
@@ -119,6 +122,7 @@ class NormalRoundPublicStatementStates:
                     "event_type": SurvivorSimEventType.PUBLIC_STATEMENT.name,
                 },
             )
+            write_progress()
 
 
 class NormalRoundVoteState:
@@ -126,7 +130,7 @@ class NormalRoundVoteState:
     def __init__(self, player_ids: list[int]):
         self.player_ids = list(player_ids)
 
-    def execute(self):
+    def execute(self, *, write_progress: Callable[[], None]):
         print("Executing Normal Round Voting Stage")
 
         def _parse_player_id(raw_answer) -> int:
@@ -174,6 +178,7 @@ class NormalRoundVoteState:
                     "event_type": SurvivorSimEventType.PRIVATE_VOTE.name,
                 },
             )
+            write_progress()
 
             vote_counts[voted_for_player_id] += 1
 
@@ -188,6 +193,7 @@ class NormalRoundVoteState:
                 "event_type": SurvivorSimEventType.VOTE_TALLY.name,
             },
         )
+        write_progress()
 
         # Find the player(s) with the maximum votes
         max_votes = max(vote_counts.values())
@@ -216,8 +222,7 @@ class NormalRoundVoteState:
                 "event_type": SurvivorSimEventType.ELIMINATION.name,
             },
         )
-
-        plomp.write_html(plomp.buffer(), "/home/michaelgiba/survivor-test.html")
+        write_progress()
 
         return eliminated_player_id
 
@@ -227,11 +232,17 @@ class NormalRoundState:
     def __init__(self, player_ids: list[int]):
         self.player_ids = list(player_ids)
 
-    def execute(self):
+    def execute(self, *, write_progress: Callable[[], None]):
         print("Executing Normal Round Stage")
-        NormalRoundCommunicationsState(self.player_ids).execute()
-        NormalRoundPublicStatementStates(self.player_ids).execute()
-        return NormalRoundVoteState(self.player_ids).execute()
+        NormalRoundCommunicationsState(self.player_ids).execute(
+            write_progress=write_progress
+        )
+        NormalRoundPublicStatementStates(self.player_ids).execute(
+            write_progress=write_progress
+        )
+        return NormalRoundVoteState(self.player_ids).execute(
+            write_progress=write_progress
+        )
 
 
 class FinalRoundPublicPleaState:
@@ -244,7 +255,7 @@ class FinalRoundPublicPleaState:
         self.remaining_player_ids = tuple(remaining_player_ids)
         self.eliminated_player_ids = tuple(eliminated_player_ids)
 
-    def execute(self):
+    def execute(self, *, write_progress: Callable[[], None]):
         print("Executing Final Round Public Plea Stage")
         plomp.record_event(
             SurvivorSimEvent(
@@ -256,6 +267,7 @@ class FinalRoundPublicPleaState:
                 "event_type": SurvivorSimEventType.ENTER_FINAL_ROUND.name,
             },
         )
+        write_progress()
 
         def _options_string():
             return ", ".join(f"P{pid}" for pid in self.remaining_player_ids)
@@ -284,6 +296,7 @@ class FinalRoundPublicPleaState:
                 "event_type": SurvivorSimEventType.FINAL_PUBLIC_PLEA.name,
             },
         )
+        write_progress()
 
         # finalist 2
         raw_answer = player_agent.ask_player(f_pid_1, _format_prompt(f_pid_1, f_pid_0))
@@ -298,6 +311,7 @@ class FinalRoundPublicPleaState:
                 "event_type": SurvivorSimEventType.FINAL_PUBLIC_PLEA.name,
             },
         )
+        write_progress()
 
 
 class FinalRoundVoteState:
@@ -310,7 +324,7 @@ class FinalRoundVoteState:
         self.remaining_player_ids = tuple(remaining_player_ids)
         self.eliminated_player_ids = list(eliminated_player_ids)
 
-    def execute(self):
+    def execute(self, *, write_progress: Callable[[], None]):
         print("Executing Final Round Voting Stage")
 
         def _parse_player_id(raw_answer) -> int:
@@ -355,6 +369,7 @@ class FinalRoundVoteState:
                     "event_type": SurvivorSimEventType.FINAL_VOTE.name,
                 },
             )
+            write_progress()
 
             vote_counts[voted_for_player_id] += 1
 
@@ -369,6 +384,7 @@ class FinalRoundVoteState:
                     "event_type": SurvivorSimEventType.VOTE_TALLY.name,
                 },
             )
+            write_progress()
 
             # Find the player(s) with the maximum votes
             max_votes = max(vote_counts.values()) if vote_counts else 0
@@ -399,6 +415,7 @@ class FinalRoundVoteState:
                     "event_type": SurvivorSimEventType.WINNER.name,
                 },
             )
+            write_progress()
 
 
 class FinalRoundState:
@@ -411,12 +428,12 @@ class FinalRoundState:
         self.remaining_player_ids = remaining_player_ids
         self.eliminated_player_ids = eliminated_player_ids
 
-    def execute(self):
+    def execute(self, *, write_progress: Callable[[], None]):
         print("Executing Final Round Stage")
         FinalRoundPublicPleaState(
             self.remaining_player_ids, self.eliminated_player_ids
-        ).execute()
+        ).execute(write_progress=write_progress)
 
         return FinalRoundVoteState(
             self.remaining_player_ids, self.eliminated_player_ids
-        ).execute()
+        ).execute(write_progress=write_progress)

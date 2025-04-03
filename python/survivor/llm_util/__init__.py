@@ -18,13 +18,22 @@ BACKEND_TYPE_TO_BACKEND = {
 }
 
 # Tweak backend here
-ACTIVE_GENERAL_TYPE = LLMBackendType.GROQ
-ACTIVE_GENERAL_BACKEND = BACKEND_TYPE_TO_BACKEND[ACTIVE_GENERAL_TYPE]
+_active_backend_type: LLMBackendType | None = None
+
+
+def set_general_model_type(backend_type: LLMBackendType):
+    global _active_backend_type
+    _active_backend_type = backend_type
+
+
+def _get_general_type() -> LLMBackendType:
+    assert _active_backend_type is not None, "LLMBackend is not set"
+    return _active_backend_type
 
 
 @plomp.wrap_prompt_fn()
 def prompt_general_info_extraction(prompt: str):
-    json_response = ACTIVE_GENERAL_BACKEND.completion(
+    json_response = BACKEND_TYPE_TO_BACKEND[_get_general_type()].completion(
         prompt,
         system_prompt="You are a general purpose LLM helping with information extraction",
         temperature=0.9,
@@ -42,7 +51,7 @@ def prompt(
     temperature: float,
     response_json_schema: dict | None = None,
 ):
-    json_response = ACTIVE_GENERAL_BACKEND.completion(
+    json_response = BACKEND_TYPE_TO_BACKEND[_get_general_type()].completion(
         prompt,
         system_prompt=system_prompt,
         temperature=temperature,
