@@ -27,7 +27,7 @@ class NormalRoundCommunicationsState:
                 events.EnterNormalRoundEventParams(self.player_ids),
             ).to_dict(),
             tags={
-                "event_type": SurvivorSimEventType.ENTER_NORMAL_ROUND.name,
+                "event": SurvivorSimEventType.ENTER_NORMAL_ROUND.name,
                 "visibility": "public",
             },
         )
@@ -84,7 +84,7 @@ class NormalRoundCommunicationsState:
                             ).to_dict(),
                             tags={
                                 "visibility": "private",
-                                "event_type": SurvivorSimEventType.PRIVATE_MESSAGE.name,
+                                "event": SurvivorSimEventType.PRIVATE_MESSAGE.name,
                                 f"p{sending_player_id}_visible": True,
                                 f"p{dest_player_id}_visible": True,
                             },
@@ -119,7 +119,7 @@ class NormalRoundPublicStatementStates:
                 ).to_dict(),
                 tags={
                     "visibility": "public",
-                    "event_type": SurvivorSimEventType.PUBLIC_STATEMENT.name,
+                    "event": SurvivorSimEventType.PUBLIC_STATEMENT.name,
                 },
             )
             write_progress()
@@ -175,7 +175,7 @@ class NormalRoundVoteState:
                 tags={
                     "visibility": "private",
                     f"p{sending_player_id}_visible": True,
-                    "event_type": SurvivorSimEventType.PRIVATE_VOTE.name,
+                    "event": SurvivorSimEventType.PRIVATE_VOTE.name,
                 },
             )
             write_progress()
@@ -190,7 +190,7 @@ class NormalRoundVoteState:
             ).to_dict(),
             tags={
                 "visibility": "public",
-                "event_type": SurvivorSimEventType.VOTE_TALLY.name,
+                "event": SurvivorSimEventType.VOTE_TALLY.name,
             },
         )
         write_progress()
@@ -219,7 +219,7 @@ class NormalRoundVoteState:
             ).to_dict(),
             tags={
                 "visibility": "public",
-                "event_type": SurvivorSimEventType.ELIMINATION.name,
+                "event": SurvivorSimEventType.ELIMINATION.name,
             },
         )
         write_progress()
@@ -264,7 +264,7 @@ class FinalRoundPublicPleaState:
             ).to_dict(),
             tags={
                 "visibility": "public",
-                "event_type": SurvivorSimEventType.ENTER_FINAL_ROUND.name,
+                "event": SurvivorSimEventType.ENTER_FINAL_ROUND.name,
             },
         )
         write_progress()
@@ -293,7 +293,7 @@ class FinalRoundPublicPleaState:
             ).to_dict(),
             tags={
                 "visibility": "public",
-                "event_type": SurvivorSimEventType.FINAL_PUBLIC_PLEA.name,
+                "event": SurvivorSimEventType.FINAL_PUBLIC_PLEA.name,
             },
         )
         write_progress()
@@ -308,7 +308,7 @@ class FinalRoundPublicPleaState:
             ).to_dict(),
             tags={
                 "visibility": "public",
-                "event_type": SurvivorSimEventType.FINAL_PUBLIC_PLEA.name,
+                "event": SurvivorSimEventType.FINAL_PUBLIC_PLEA.name,
             },
         )
         write_progress()
@@ -366,7 +366,7 @@ class FinalRoundVoteState:
                 ).to_dict(),
                 tags={
                     "visibility": "public",
-                    "event_type": SurvivorSimEventType.FINAL_VOTE.name,
+                    "event": SurvivorSimEventType.FINAL_VOTE.name,
                 },
             )
             write_progress()
@@ -381,7 +381,7 @@ class FinalRoundVoteState:
                 ).to_dict(),
                 tags={
                     "visibility": "public",
-                    "event_type": SurvivorSimEventType.VOTE_TALLY.name,
+                    "event": SurvivorSimEventType.VOTE_TALLY.name,
                 },
             )
             write_progress()
@@ -412,7 +412,7 @@ class FinalRoundVoteState:
                 ).to_dict(),
                 tags={
                     "visibility": "public",
-                    "event_type": SurvivorSimEventType.WINNER.name,
+                    "event": SurvivorSimEventType.WINNER.name,
                 },
             )
             write_progress()

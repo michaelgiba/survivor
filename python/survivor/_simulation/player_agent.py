@@ -91,7 +91,7 @@ def _player_context(player_id):
     items = "\n".join(
         f"{i + 1}. {message_from_query}"
         for i, item in enumerate(query_result)
-        for message_from_query in [item.to_dict()["data"]["payload"]["message"]]
+        for message_from_query in [item.to_dict()["data"]["payload"]["context"]]
     )
     return dedent(f"{intro}\n{items}")
 
@@ -106,7 +106,12 @@ def ask_yes_or_no(
         f"Only answer YES or NO to the following question. {message!r}. YES or NO",
     )
 
-    response = prompt_fn(prompt, _system_prompt(player_id), 1.0)
+    response = prompt_fn(
+        prompt,
+        _system_prompt(player_id),
+        1.0,
+        plomp_extra_tags={f"p{player_id}_visible": True, "thinking": True},
+    )
     return "yes" in response.lower()
 
 
@@ -126,6 +131,7 @@ def ask_player(
         _system_prompt(player_id),
         1.0,
         response_json_schema=response_json_schema,
+        plomp_extra_tags={f"p{player_id}_visible": True, "thinking": True},
     )
 
     return response

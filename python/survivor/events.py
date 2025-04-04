@@ -158,8 +158,9 @@ class SurvivorSimEvent:
     def to_dict(self):
         """Convert event to a dictionary for JSON serialization"""
         return {
-            "event_type": self.event_type.name,
+            "plomp_display_event_type": self.event_type.name,
+            "plomp_display_text": self.event_params.description(),
             "event_params_type": type(self.event_params).__name__,
             "event_params": asdict(self.event_params),
-            "message": self.event_params.description(),
+            "context": self.event_params.description(),
         }
